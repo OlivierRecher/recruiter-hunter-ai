@@ -121,7 +121,7 @@ Analyze each profile and return a strict JSON list. For each profile, identify:
 3. The "Potential Score" (0-100): Probability that this person could hire me or get me an interview.
 4. The "Type": "Hiring Manager" (potential boss), "Recruiter" (HR), "Peer" (Colleague), or "Irrelevant".
 5. A short "Reason" (one sentence) explaining why this contact is relevant.
-6. The email address (if available in the snippet, otherwise leave empty "").
+6. The email address (extract from the snippet if available, look for patterns like "email", "contact", "@company.com", or any visible email format. If not found, leave empty "").
 7. The LinkedIn URL.
 
 Here are the profiles:

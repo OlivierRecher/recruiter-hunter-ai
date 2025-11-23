@@ -82,7 +82,7 @@
                   <input
                     v-model="targetCompany"
                     type="text"
-                    placeholder="L'Oréal"
+                    placeholder="Google"
                     class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -102,7 +102,7 @@
             </div>
 
             <div>
-              <h2 class="text-2xl font-semibold text-gray-800 mb-4">2. Your Profile (for AI)</h2>
+              <h2 class="text-2xl font-semibold text-gray-800 mb-4">2. Your Profile (for AI Message)</h2>
               
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -111,7 +111,7 @@
                 <textarea
                   v-model="userContext"
                   rows="3"
-                  placeholder="5 years of experience, agile expert, bilingual English."
+                  placeholder="5 years of experience, Software Engineer, Agile expert, bilingual English."
                   class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -119,12 +119,12 @@
 
             <button
               @click="handleSearch"
-              :disabled="isLoading || !canSearch"
+              :disabled="isLoading || isFindingEmails || !canSearch"
               class="w-full bg-blue-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
-              <span v-if="isLoading" class="animate-spin">⏳</span>
+              <span v-if="isLoading || isFindingEmails" class="animate-spin">⏳</span>
               <span v-else>🔍</span>
-              {{ isLoading ? 'Searching...' : 'Launch Search' }}
+              {{ isFindingEmails ? emailSearchProgress : isLoading ? 'Searching...' : 'Launch Search' }}
             </button>
 
             <div v-if="error" class="p-4 rounded-md" :class="error.includes('⏱️') ? 'bg-yellow-50 border border-yellow-200' : 'bg-red-50 border border-red-200'">
@@ -155,14 +155,29 @@
                       </h3>
                       <p class="text-gray-600 font-medium mb-2">{{ contact.role }}</p>
                       <p class="text-gray-500 text-sm italic mb-3">{{ contact.reason }}</p>
-                      <a
-                        :href="contact.link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        View LinkedIn Profile →
-                      </a>
+                      <div class="space-y-1">
+                        <a
+                          :href="contact.link"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-blue-600 hover:text-blue-800 text-sm font-medium block"
+                        >
+                          View LinkedIn Profile →
+                        </a>
+                        <p class="text-sm text-gray-600">
+                            <span class="font-medium">Email:</span>
+                            <a
+                            v-if="contact.email && contact.email.trim() !== ''"
+                            :href="`mailto:${contact.email}`"
+                            class="text-blue-600 hover:underline"
+                            >
+                            {{ contact.email }}
+                            </a>
+                            <span v-else class="text-gray-400 italic">
+                            email not provided
+                            </span>
+                        </p>
+                      </div>
                     </div>
                     
                     <div class="flex flex-col items-end gap-2 ml-4">
@@ -229,6 +244,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useApiKeys } from '~/composables/useApiKeys'
 import { useSerper } from '~/composables/useSerper'
 import { useOpenAI, OpenAIError } from '~/composables/useOpenAI'
+import { useEmailFinder } from '~/composables/useEmailFinder'
 
 interface AnalyzedContact {
   id: number
@@ -244,18 +260,21 @@ interface AnalyzedContact {
 const { getOpenAiKey, getSerperKey, setOpenAiKey, setSerperKey } = useApiKeys()
 const { searchProfiles } = useSerper()
 const { analyzeProfiles, draftMessage: generateDraftMessage } = useOpenAI()
+const { findEmail } = useEmailFinder()
 
 const openaiApiKey = ref('')
 const serperApiKey = ref('')
-const targetRole = ref('Digital Project Manager')
-const targetCompany = ref("L'Oréal")
+const targetRole = ref('')
+const targetCompany = ref('')
 const jobDescription = ref('')
-const userContext = ref('5 years of experience, agile expert, bilingual English.')
+const userContext = ref('')
 const contacts = ref<AnalyzedContact[]>([])
 const selectedContact = ref<AnalyzedContact | null>(null)
 const draftMessage = ref('')
 const isLoading = ref(false)
 const isGenerating = ref(false)
+const isFindingEmails = ref(false)
+const emailSearchProgress = ref('')
 const error = ref('')
 
 const canSearch = computed(() => {
@@ -317,6 +336,50 @@ const handleSearch = async () => {
     )
 
     contacts.value = analyzed
+
+    // 3. Find emails for contacts that don't have one
+    try {
+      isFindingEmails.value = true
+      emailSearchProgress.value = 'Searching for emails...'
+      
+      const contactsWithEmails = await Promise.all(
+        analyzed.map(async (contact, index) => {
+          // If email already found by AI, keep it
+          if (contact.email && contact.email.trim() !== '') {
+            return contact
+          }
+
+          // Otherwise, search for email
+          emailSearchProgress.value = `Finding email for ${contact.name} (${index + 1}/${analyzed.length})...`
+          
+          try {
+            const foundEmail = await findEmail(
+              contact.name,
+              targetCompany.value,
+              contact.role,
+              serperApiKey.value
+            )
+
+            return {
+              ...contact,
+              email: foundEmail || contact.email || ''
+            }
+          } catch (emailError) {
+            // If email search fails, keep the contact without email
+            console.warn(`Failed to find email for ${contact.name}:`, emailError)
+            return contact
+          }
+        })
+      )
+
+      contacts.value = contactsWithEmails
+    } catch (emailSearchError) {
+      // If email search fails completely, keep contacts without emails
+      console.warn('Email search failed:', emailSearchError)
+    } finally {
+      isFindingEmails.value = false
+      emailSearchProgress.value = ''
+    }
   } catch (err: any) {
     if (err instanceof OpenAIError) {
       if (err.statusCode === 429 && err.retryAfter) {
@@ -330,6 +393,8 @@ const handleSearch = async () => {
     console.error(err)
   } finally {
     isLoading.value = false
+    isFindingEmails.value = false
+    emailSearchProgress.value = ''
   }
 }
 

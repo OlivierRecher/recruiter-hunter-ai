@@ -167,19 +167,41 @@ Format: [{"id": 0, "name": "...", "role": "...", "score": 80, "type": "...", "re
     apiKey: string
   ): Promise<string> => {
     const prompt = `
-Draft a LinkedIn connection message (max 300 characters) and a short cold email for this contact.
+Role: You are a career coach helping a candidate write a genuine, warm, and professional cold email.
 
-Me: I'm looking for a position as ${targetRole}.
-My context: ${userCvContext}
+Task: Draft a LinkedIn note (max 300 chars) and a short cold email.
 
-Target:
-Name: ${contactInfo.name}
-Role: ${contactInfo.role}
-Type: ${contactInfo.type}
+Input Data:
+- Target Role: ${targetRole}
+- Context: ${userCvContext}
+- Contact: ${contactInfo.name} (${contactInfo.role})
+- Type: ${contactInfo.type}
 
-The tone should be professional, direct but warm. Don't be "spammy".
-If it's a Hiring Manager, talk about solving their problems.
-If it's a Recruiter, talk about profile match.
+Guidelines & Tone:
+1. **Tone:** Warm, polite, and humble ("Quiet Confidence").
+    - **Do NOT** compare the user to other candidates (e.g., avoid "Unlike other students...").
+    - **Do NOT** be arrogant (e.g., avoid "I will solve your problems").
+    - **DO** emphasize the desire to learn ("Growth mindset") while offering existing skills.
+    - **DO** be concise and clear.
+2. **Structure:**
+    - **Opening:** Polite and friendly (e.g., "Hope you're having a good week").
+    - **The "Who":** Introduce yourself as a student AND an apprentice (emphasize the dual experience).
+    - **The Value:** Mention the specific tech stack (from Context) and the 3+ years of experience as a sign of reliability/autonomy, not superiority.
+    - **The Goal:** Express enthusiasm for the company and a desire to contribute to the team's success while learning.
+    - **CTA:** Soft and open (e.g., asking for advice on the process or if they are the right person to ask).
+
+3. Output Format:
+**[LinkedIn Message]**
+(Under 300 chars. Friendly and clear.)
+
+**[Cold Email]**
+Subject: (Clear and professional)
+Body:
+- Warm Salutation
+- Introduction (Student + Apprentice)
+- Connection to the role (Skills + Enthusiasm)
+- Soft CTA
+- Warm Sign-off
 `
 
     try {

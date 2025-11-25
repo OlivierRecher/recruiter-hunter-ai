@@ -105,17 +105,19 @@ export const useOpenAI = () => {
     profiles: Profile[],
     targetRole: string,
     jobDesc: string,
-    apiKey: string
+    apiKey: string,
+    location?: string
   ): Promise<AnalyzedContact[]> => {
     const profilesText = profiles
       .map((p, i) => `ID: ${i}, Titre: ${p.title}, Snippet: ${p.snippet}, Link: ${p.link}`)
       .join('\n')
 
     const prompt = `
-You are a recruitment expert. Here is a list of LinkedIn search results for someone looking for the position of '${targetRole}'.
-Job description (context): ${jobDesc || 'Not provided'}
+  You are a recruitment expert. Here is a list of LinkedIn search results for someone looking for the position of '${targetRole}'.
+  Job description (context): ${jobDesc || 'Not provided'}
+  Job location (context): ${location || 'Not provided'}
 
-Analyze each profile and return a strict JSON list. For each profile, identify:
+  Analyze each profile and return a strict JSON list. For each profile, identify:
 1. The Name (extracted from the title).
 2. The Current Role.
 3. The "Potential Score" (0-100): Probability that this person could hire me or get me an interview.
@@ -179,16 +181,18 @@ Input Data:
 
 Guidelines & Tone:
 1. **Tone:** Warm, polite, and humble ("Quiet Confidence").
-    - **Do NOT** compare the user to other candidates (e.g., avoid "Unlike other students...").
-    - **Do NOT** be arrogant (e.g., avoid "I will solve your problems").
-    - **DO** emphasize the desire to learn ("Growth mindset") while offering existing skills.
+    - **Be Enterprising:** Don't just ask if they are hiring. Propose a value exchange.
+    - **Be Humble yet Ready:** Express a strong desire to learn from the best (e.g., "thrilled to learn"), but assert operational readiness (e.g., "ready to contribute").
+    - **No Arrogance:** Avoid comparing yourself to others (e.g., no "unlike other students"). Focus on your own unique path.
     - **DO** be concise and clear.
 2. **Structure:**
     - **Opening:** Polite and friendly (e.g., "Hope you're having a good week").
     - **The "Who":** Introduce yourself as a student AND an apprentice (emphasize the dual experience).
     - **The Value:** Mention the specific tech stack (from Context) and the 3+ years of experience as a sign of reliability/autonomy, not superiority.
     - **The Goal:** Express enthusiasm for the company and a desire to contribute to the team's success while learning.
-    - **CTA:** Soft and open (e.g., asking for advice on the process or if they are the right person to ask).
+    **The CTA (Call to Action):**
+    - **Direct Interview Request:** Ask for a brief chat/call directly.
+    - Examples: "Are you open to a 10-min chat?", "I’d love to discuss how I can contribute..."
 
 3. Output Format:
 **[LinkedIn Message]**

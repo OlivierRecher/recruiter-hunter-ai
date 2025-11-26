@@ -35,7 +35,7 @@ export const useEmailFinder = () => {
         },
         body: {
           q: `"${name}" "${company}" (email OR contact OR "@") site:*.com`,
-          num: 5
+          num: 3
         }
       })
 
@@ -94,7 +94,7 @@ export const useEmailFinder = () => {
             },
             body: {
               q: query,
-              num: 3
+              num: 2
             }
           })
 
@@ -128,87 +128,9 @@ export const useEmailFinder = () => {
     }
   }
 
-  const searchEmailOnGitHub = async (
-    name: string,
-    company: string,
-    apiKey: string
-  ): Promise<EmailSearchResult[]> => {
-    try {
-      const response = await $fetch('https://google.serper.dev/search', {
-        method: 'POST',
-        headers: {
-          'X-API-KEY': apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          q: `"${name}" "${company}" site:github.com`,
-          num: 3
-        }
-      })
 
-      const results = (response as any).organic || []
-      const emails: EmailSearchResult[] = []
 
-      for (const result of results) {
-        const text = `${result.title} ${result.snippet}`.toLowerCase()
-        const foundEmails = extractEmails(text)
-        
-        for (const email of foundEmails) {
-          emails.push({
-            email,
-            source: 'GitHub',
-            confidence: 'medium'
-          })
-        }
-      }
 
-      return emails
-    } catch (error) {
-      console.error('Error searching GitHub:', error)
-      return []
-    }
-  }
-
-  const searchEmailOnTwitter = async (
-    name: string,
-    company: string,
-    apiKey: string
-  ): Promise<EmailSearchResult[]> => {
-    try {
-      const response = await $fetch('https://google.serper.dev/search', {
-        method: 'POST',
-        headers: {
-          'X-API-KEY': apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          q: `"${name}" "${company}" (email OR contact) site:x.com`,
-          num: 3
-        }
-      })
-
-      const results = (response as any).organic || []
-      const emails: EmailSearchResult[] = []
-
-      for (const result of results) {
-        const text = `${result.title} ${result.snippet}`.toLowerCase()
-        const foundEmails = extractEmails(text)
-        
-        for (const email of foundEmails) {
-          emails.push({
-            email,
-            source: 'Twitter/X',
-            confidence: 'low'
-          })
-        }
-      }
-
-      return emails
-    } catch (error) {
-      console.error('Error searching Twitter:', error)
-      return []
-    }
-  }
 
   const findEmail = async (
     name: string,
@@ -217,27 +139,21 @@ export const useEmailFinder = () => {
     apiKey: string
   ): Promise<string> => {
     try {
-      // Run all searches in parallel for better performance
+      // Run searches in parallel for better performance (company website + google only)
       const [
         companyResults,
-        googleResults,
-        githubResults,
-        twitterResults
+        googleResults
       ] = await Promise.all(
         [
           searchEmailOnCompanyWebsite(name, company, apiKey),
-          searchEmailOnGoogle(name, company, role, apiKey),
-          searchEmailOnGitHub(name, company, apiKey),
-          searchEmailOnTwitter(name, company, apiKey)
+          searchEmailOnGoogle(name, company, role, apiKey)
         ]
       )
 
-      // Combine all results
+      // Combine results
       const allResults = [
         ...companyResults,
-        ...googleResults,
-        ...githubResults,
-        ...twitterResults
+        ...googleResults
       ]
 
       if (allResults.length === 0) {
@@ -269,9 +185,7 @@ export const useEmailFinder = () => {
   return {
     findEmail,
     searchEmailOnCompanyWebsite,
-    searchEmailOnGoogle,
-    searchEmailOnGitHub,
-    searchEmailOnTwitter
+    searchEmailOnGoogle
   }
 }
 

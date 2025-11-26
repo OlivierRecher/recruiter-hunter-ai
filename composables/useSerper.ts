@@ -6,7 +6,7 @@ export const useSerper = () => {
     
     const payload = {
       q: query,
-      num: 15
+      num: 10
     }
 
     try {
